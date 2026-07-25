@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+
+# Local SQLite data (regenerated with demo seed on first run)
+data/*.db
+
+# OS / editor
+.DS_Store
