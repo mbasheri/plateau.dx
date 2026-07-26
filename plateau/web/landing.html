@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plateau·Dx — know why you stalled</title>
+  <meta name="color-scheme" content="light dark" />
+  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/manrope-800.woff2" crossorigin />
+  <style>
+    @font-face { font-family: "Manrope"; src: url("/static/fonts/manrope-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+    @font-face { font-family: "Manrope"; src: url("/static/fonts/manrope-600.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+    @font-face { font-family: "Manrope"; src: url("/static/fonts/manrope-800.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+    @font-face { font-family: "IBM Plex Mono"; src: url("/static/fonts/ibm-plex-mono-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+
+    :root {
+      --paper: #FAF7F1;      /* soft warm off-white */
+      --panel: #FFFFFF;
+      --ink: #14201C;
+      --muted: #5F6B64;
+      --rule: #E7E1D6;
+      --cyan-deep: #0A6478;
+      --cyan-ink: #0E7A90;
+      --cyan-vivid: #16C8E0;
+      --cyan-wash: #DEF7FA;
+      --amber: #E39A0C;
+      --sans: "Manrope", system-ui, sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --paper: #10151A; --panel: #161C22; --ink: #EEF2F0; --muted: #9AA6A0;
+        --rule: #26303A; --cyan-deep: #0A5568; --cyan-ink: #4FE0F5; --cyan-vivid: #6FEAFA; --cyan-wash: #123038; }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body { background: var(--paper); color: var(--ink); font-family: var(--sans);
+      font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+    .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    a { color: var(--cyan-ink); text-decoration: none; }
+    .wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+
+    header { display: flex; align-items: baseline; justify-content: space-between;
+      padding: 24px 0; }
+    .wordmark { font-family: var(--mono); font-size: 13px; letter-spacing: 0.22em;
+      text-transform: uppercase; color: var(--ink); }
+    .wordmark .mid { color: var(--cyan-ink); }
+    header a { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+    .hero { display: grid; grid-template-columns: 1.35fr 1fr; gap: 48px; align-items: center;
+      padding: 56px 0 88px; }
+    .hero h1 { font-weight: 800; font-size: clamp(40px, 6.2vw, 74px); line-height: 1.02;
+      letter-spacing: -0.02em; margin: 0 0 20px; }
+    .hero h1 .hl { color: var(--cyan-ink); }
+    .hero p.sub { font-size: 19px; color: var(--muted); margin: 0 0 32px; max-width: 42ch; }
+    .cta { display: inline-flex; align-items: center; gap: 10px; background: var(--cyan-deep);
+      color: #fff; font-weight: 600; font-size: 16px; padding: 14px 26px; border-radius: 10px; }
+    .cta:hover { filter: brightness(1.08); }
+    .cta .arrow { font-family: var(--mono); }
+    .hero-art { display: flex; justify-content: center; }
+    .hero-art svg { width: 100%; max-width: 360px; height: auto; }
+
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+      padding: 8px 0 96px; }
+    .feature { background: var(--panel); border: 1px solid var(--rule); border-radius: 14px;
+      padding: 28px 26px; }
+    .feature .ic { width: 44px; height: 44px; margin-bottom: 18px; display: block; }
+    .feature h3 { font-weight: 800; font-size: 20px; margin: 0 0 8px; letter-spacing: -0.01em; }
+    .feature p { margin: 0; color: var(--muted); font-size: 15.5px; }
+    .kicker { font-family: var(--mono); font-size: 12px; letter-spacing: 0.14em;
+      text-transform: uppercase; color: var(--cyan-ink); margin-bottom: 16px; }
+
+    footer { border-top: 1px solid var(--rule); padding: 28px 0 56px; }
+    footer .mono { font-size: 12px; color: var(--muted); letter-spacing: 0.06em; }
+
+    @media (max-width: 820px) {
+      .hero { grid-template-columns: 1fr; gap: 32px; padding: 32px 0 56px; }
+      .hero-art { order: -1; }
+      .hero-art svg { max-width: 260px; }
+      .features { grid-template-columns: 1fr; gap: 16px; padding-bottom: 64px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="wordmark">Plateau<span class="mid">·</span>Dx</span>
+      <a href="/app">Open the demo →</a>
+    </header>
+
+    <section class="hero">
+      <div>
+        <div class="kicker">Strength diagnosis</div>
+        <h1>Know <span class="hl">why</span> you stalled, not just that you did.</h1>
+        <p class="sub">Most trackers chart your lifts and leave you guessing. Plateau·Dx reads your training and recovery, then tells you the likely cause and what to change.</p>
+        <a class="cta" href="/app">See the demo <span class="arrow">→</span></a>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        <!-- rising-then-flat trend with a shaded plateau region -->
+        <svg viewBox="0 0 360 240" role="img" aria-label="a trend line that goes flat">
+          <rect x="200" y="30" width="150" height="180" rx="6" fill="var(--cyan-wash)"/>
+          <line x1="20" y1="210" x2="350" y2="210" stroke="var(--rule)" stroke-width="2"/>
+          <polyline points="24,196 70,168 116,150 162,118 200,96 246,96 292,96 338,96"
+            fill="none" stroke="var(--cyan-vivid)" stroke-width="4" stroke-linejoin="round"/>
+          <circle cx="200" cy="96" r="7" fill="var(--cyan-vivid)"/>
+          <circle cx="292" cy="96" r="5" fill="var(--paper)" stroke="var(--cyan-vivid)" stroke-width="3"/>
+          <text x="275" y="24" text-anchor="middle" font-family="var(--mono)" font-size="13" fill="var(--cyan-ink)">plateau</text>
+        </svg>
+      </div>
+    </section>
+
+    <section class="features">
+      <div class="feature">
+        <svg class="ic" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <line x1="6" y1="40" x2="42" y2="40" stroke="var(--rule)" stroke-width="2.5"/>
+          <polyline points="6,34 16,24 24,16 30,16 42,16" stroke="var(--cyan-vivid)" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle cx="30" cy="16" r="4" fill="var(--cyan-vivid)"/>
+        </svg>
+        <h3>Detects plateaus</h3>
+        <p>It flags when a lift has genuinely stalled, sized to how often you train it — not too early, not too late.</p>
+      </div>
+      <div class="feature">
+        <svg class="ic" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <path d="M12 10 v10 M12 20 h9 a5 5 0 0 1 5 5 v3 M12 20 h9 a5 5 0 0 0 5 -5 v-3" stroke="var(--cyan-ink)" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="30" cy="30" r="9" stroke="var(--cyan-vivid)" stroke-width="3.5"/>
+          <line x1="37" y1="37" x2="43" y2="43" stroke="var(--cyan-vivid)" stroke-width="3.5" stroke-linecap="round"/>
+        </svg>
+        <h3>Diagnoses the cause</h3>
+        <p>Recovery, nutrition, stale programming, effort, technique — it weighs the signals and names the likely reason.</p>
+      </div>
+      <div class="feature">
+        <svg class="ic" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+          <line x1="6" y1="18" x2="42" y2="18" stroke="var(--rule)" stroke-width="2.5"/>
+          <rect x="20" y="14" width="16" height="8" rx="2" fill="var(--amber)"/>
+          <line x1="20" y1="10" x2="20" y2="26" stroke="var(--amber)" stroke-width="2.5"/>
+          <circle cx="36" cy="18" r="4.5" fill="var(--cyan-vivid)"/>
+          <line x1="6" y1="34" x2="42" y2="34" stroke="var(--rule)" stroke-width="2.5"/>
+          <rect x="12" y="30" width="8" height="8" rx="2" fill="var(--amber)"/>
+          <line x1="12" y1="26" x2="12" y2="42" stroke="var(--amber)" stroke-width="2.5"/>
+          <circle cx="20" cy="34" r="4.5" fill="var(--cyan-vivid)"/>
+        </svg>
+        <h3>Shows the evidence</h3>
+        <p>Every verdict comes with the numbers behind it, so you can see how far past the line each signal went.</p>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <div class="wrap"><span class="mono">Plateau·Dx — a rules-based strength-plateau diagnosis. Demo data included.</span></div>
+  </footer>
+</body>
+</html>

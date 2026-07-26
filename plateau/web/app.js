@@ -37,9 +37,15 @@ const CAUSE_HEADLINE = {
   programming_staleness: "Your plan has gone stale.",
   technique: "You're stuck at a sticking point.",
 };
+// Terse, scannable chip labels for the lift strip (1–2 words, no sentences).
 const CAUSE_SHORT = {
-  fatigue: "under-recovered", insufficient_stimulus: "too easy",
+  fatigue: "low recovery", insufficient_stimulus: "too easy",
   nutrition: "under-eating", programming_staleness: "stale plan", technique: "sticking point",
+};
+// One- or two-word themes used to build the plain-English summary line.
+const CAUSE_THEME = {
+  fatigue: "recovery", insufficient_stimulus: "training intensity",
+  nutrition: "nutrition", programming_staleness: "stale programming", technique: "technique",
 };
 const CONF_WORD = { high: "Confident.", medium: "Likely.", low: "Possible." };
 
@@ -136,7 +142,7 @@ function evidenceScaleSVG(sig) {
     <line x1="${ax0}" y1="${midY}" x2="${ax1}" y2="${midY}" style="stroke: var(--rule)" stroke-width="1"/>
     <rect x="${tX.toFixed(1)}" y="9" width="${(vX - tX).toFixed(1)}" height="8" rx="1" style="fill: var(--amber)"/>
     <line x1="${tX.toFixed(1)}" y1="4" x2="${tX.toFixed(1)}" y2="22" style="stroke: var(--amber)" stroke-width="1.5"/>
-    <circle cx="${vX.toFixed(1)}" cy="${midY}" r="4.5" style="fill: var(--emerald-vivid); stroke: var(--paper)" stroke-width="1.5"/>
+    <circle cx="${vX.toFixed(1)}" cy="${midY}" r="4.5" style="fill: var(--cyan-vivid); stroke: var(--paper)" stroke-width="1.5"/>
   </svg>`;
 }
 
@@ -179,7 +185,7 @@ function buildChartSVG(series) {
   let shade = "";
   if (stalled >= 3 && lastHigh >= 0) {
     const x0 = x(lastHigh);
-    shade = `<rect x="${x0.toFixed(1)}" y="${pad.t}" width="${(x(n - 1) - x0).toFixed(1)}" height="${ih}" style="fill: var(--emerald-wash)"/>`;
+    shade = `<rect x="${x0.toFixed(1)}" y="${pad.t}" width="${(x(n - 1) - x0).toFixed(1)}" height="${ih}" style="fill: var(--cyan-wash)"/>`;
   }
   const axis = `
     <line x1="${pad.l}" y1="${pad.t}" x2="${pad.l}" y2="${pad.t + ih}" style="stroke: var(--rule)" stroke-width="1"/>
@@ -187,12 +193,12 @@ function buildChartSVG(series) {
     <text x="${pad.l - 5}" y="${(y(ymax) + 3).toFixed(1)}" text-anchor="end" style="fill: var(--muted); font-family: var(--mono)" font-size="9">${round(ymax)}</text>
     <text x="${pad.l - 5}" y="${(y(ymin) + 3).toFixed(1)}" text-anchor="end" style="fill: var(--muted); font-family: var(--mono)" font-size="9">${round(ymin)}</text>`;
   const pts = series.map((s, i) => `${x(i).toFixed(1)},${y(s.est_1rm).toFixed(1)}`);
-  const line = `<polyline points="${pts.join(" ")}" fill="none" style="stroke: var(--emerald-vivid)" stroke-width="1.5"/>`;
+  const line = `<polyline points="${pts.join(" ")}" fill="none" style="stroke: var(--cyan-vivid)" stroke-width="1.5"/>`;
   const dots = series.map((s, i) => {
     const cx = x(i).toFixed(1), cy = y(s.est_1rm).toFixed(1);
     const tip = `${s.date} · ${round(s.top_weight)}×${s.top_set_reps}` +
       (s.avg_rpe != null ? ` @ RPE ${round(s.avg_rpe)}` : "") + ` · e1RM ${round(s.est_1rm)}`;
-    const st = s.is_new_high ? `fill: var(--emerald-vivid); stroke: var(--paper)` : `fill: var(--paper); stroke: var(--emerald-vivid)`;
+    const st = s.is_new_high ? `fill: var(--cyan-vivid); stroke: var(--paper)` : `fill: var(--paper); stroke: var(--cyan-vivid)`;
     return `<circle cx="${cx}" cy="${cy}" r="${s.is_new_high ? 3.4 : 2.6}" style="${st}" stroke-width="1"><title>${tip}</title></circle>`;
   });
   const dl = (i) => series[i].date.slice(5);
@@ -226,8 +232,9 @@ function PlateauBlock({ report }) {
   return html`
     <div class="block">
       <div class="dx-hero">
-        <span class="kicker">${report.exercise.name} · ${report.exercise.muscle_group} · stuck ${weeks} week${weeks === 1 ? "" : "s"}</span>
-        <h2 class="dx-verdict">${headline}</h2>
+        <span class="kicker">${report.exercise.muscle_group} · stuck ${weeks} week${weeks === 1 ? "" : "s"}</span>
+        <h2 class="dx-verdict">${report.exercise.name}</h2>
+        <p class="dx-diagnosis">${headline}</p>
         <div class="dx-conf">${conf}</div>
         ${top && html`
           <div class="dx-fix">
@@ -266,8 +273,26 @@ function Dashboard({ data, loading }) {
   }
   const reports = data.reports;
   const plateaus = reports.filter((r) => r.plateau.enough_data && r.plateau.is_plateau);
+
+  // At-a-glance line built from the top-ranked cause across all plateaued lifts.
+  const themes = [...new Set(plateaus
+    .map((r) => r.causes[0] && CAUSE_THEME[r.causes[0].id]).filter(Boolean))];
+  const n = plateaus.length;
+  let summary;
+  if (n === 0) {
+    summary = "No plateaus right now — every tracked lift is still moving.";
+  } else {
+    const list = themes.length <= 1 ? (themes[0] || "a few things")
+      : themes.length === 2 ? `${themes[0]} and ${themes[1]}`
+      : `${themes.slice(0, -1).join(", ")}, and ${themes[themes.length - 1]}`;
+    const many = themes.length > 1;
+    summary = `${n} lift${n > 1 ? "s" : ""} need${n > 1 ? "" : "s"} attention — `
+      + `${list} ${many ? "are" : "is"} your main ${many ? "issues" : "issue"}.`;
+  }
+
   return html`
     <div class="wrap">
+      <p class="summary">${summary}</p>
       <div class="strip">
         <span class="strip-lbl">all lifts</span>
         ${reports.map((r, i) => {
@@ -281,9 +306,7 @@ function Dashboard({ data, loading }) {
           </span>`;
         })}
       </div>
-      ${plateaus.length === 0
-        ? html`<div class="empty">No plateaus. Every tracked lift is still moving.</div>`
-        : plateaus.map((r) => html`<${PlateauBlock} key=${r.exercise.id} report=${r} />`)}
+      ${plateaus.map((r) => html`<${PlateauBlock} key=${r.exercise.id} report=${r} />`)}
     </div>`;
 }
 

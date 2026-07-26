@@ -207,5 +207,12 @@ app.mount("/static", StaticFiles(directory=str(WEB_DIR)), name="static")
 
 
 @app.get("/")
-def index():
+def landing():
+    """Marketing landing page (separate register from the dashboard)."""
+    return FileResponse(str(WEB_DIR / "landing.html"))
+
+
+@app.get("/app")
+def dashboard():
+    """The dashboard single-page app."""
     return FileResponse(str(WEB_DIR / "index.html"))
