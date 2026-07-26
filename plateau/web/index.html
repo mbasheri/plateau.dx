@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Plateau·Dx — plateau diagnosis</title>
+  <meta name="color-scheme" content="light dark" />
+  <!-- Preload the faces used above the fold so there's no layout shift on load. -->
+  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/bodoni-moda-600.woff2" crossorigin />
+  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/inter-tight-400.woff2" crossorigin />
+  <link rel="preload" as="font" type="font/woff2" href="/static/fonts/ibm-plex-mono-400.woff2" crossorigin />
+  <link rel="stylesheet" href="/static/styles.css?v=b6" />
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Vendored, no build step. React + htm as classic scripts. -->
+  <script src="/static/vendor/react.production.min.js"></script>
+  <script src="/static/vendor/react-dom.production.min.js"></script>
+  <script src="/static/vendor/htm.umd.js"></script>
+  <script src="/static/app.js?v=b6"></script>
+</body>
+</html>
