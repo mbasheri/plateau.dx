@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Plateau·Dx — plateau diagnosis</title>
+  <meta name="color-scheme" content="light" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css?v=r1" />
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Deploy config: sets window.PLATEAU_API_BASE for a split frontend (Vercel) → backend (Render). -->
+  <script src="/static/config.js"></script>
+  <!-- Vendored, no build step. React + htm as classic scripts. -->
+  <script src="/static/vendor/react.production.min.js"></script>
+  <script src="/static/vendor/react-dom.production.min.js"></script>
+  <script src="/static/vendor/htm.umd.js"></script>
+  <script src="/static/app.js?v=r1"></script>
+</body>
+</html>
