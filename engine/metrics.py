@@ -8,6 +8,7 @@ trend) are in one place and easy to tweak or unit-test in isolation.
 
 from __future__ import annotations
 
+import statistics
 from datetime import date
 from typing import List, Optional, Sequence
 
@@ -91,3 +92,22 @@ def linear_trend(values: Sequence[Optional[float]]) -> Optional[float]:
 def weeks_between(first: date, last: date) -> float:
     """Calendar weeks between two dates (>=0)."""
     return max(0.0, (last - first).days / 7.0)
+
+
+def logged_frequency_per_week(dates: Sequence[date]) -> Optional[float]:
+    """
+    Sessions per week inferred from the MEDIAN gap between consecutive session
+    dates. Median (not mean) so a single missed week doesn't distort the cadence.
+    Returns None with fewer than 3 distinct dates (too little to infer a rhythm).
+    """
+    ds = sorted(set(dates))
+    if len(ds) < 3:
+        return None
+    gaps = [(ds[i] - ds[i - 1]).days for i in range(1, len(ds))]
+    gaps = [g for g in gaps if g > 0]
+    if not gaps:
+        return None
+    med = statistics.median(gaps)
+    if med <= 0:
+        return None
+    return 7.0 / med

@@ -13,7 +13,7 @@ real logic — so the flow of reasoning is easy to follow end to end.
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
 from . import thresholds as T
 from .detection import detect_plateau
@@ -25,6 +25,7 @@ from .types import (
     ExerciseInfo,
     ExerciseSession,
     PlateauResult,
+    RoutineContext,
 )
 
 
@@ -38,10 +39,12 @@ def _confidence_for(score: float) -> str:
 
 
 def _rank_causes(
-    metrics, contexts: List[DailyContext], goal: str
+    metrics, contexts: List[DailyContext], goal: str,
+    routine: Optional[RoutineContext], analysis_window_sessions: int,
 ) -> List[Cause]:
     """Run every rule, keep the ones that meaningfully fired, rank best-first."""
-    window = build_window(metrics, contexts, goal)
+    window = build_window(metrics, contexts, goal, routine=routine,
+                          analysis_window_sessions=analysis_window_sessions)
 
     scored: List[Cause] = []
     for rule in ALL_RULES:
@@ -94,21 +97,28 @@ def diagnose_exercise(
     sessions: List[ExerciseSession],
     contexts: List[DailyContext],
     goal: str = "strength",
+    routine: Optional[RoutineContext] = None,
 ) -> DiagnosisReport:
     """
     Full diagnosis for one exercise.
 
-    exercise : identity + muscle group.
+    exercise : identity + muscle group + library tags.
     sessions : every logged session for this exercise (any order).
     contexts : the user's daily check-ins (the engine matches them by date).
     goal     : 'strength' | 'hypertrophy' | 'general' — tunes nutrition weighting.
+    routine  : the user's plan for this lift, if any. Drives the frequency-aware
+               window and the measurable insufficient-stimulus / direct staleness
+               signals. Omit (None) and the engine falls back to log-only logic.
     """
-    plateau = detect_plateau(sessions)
+    plateau = detect_plateau(sessions, routine=routine)
 
     # Only reason about causes when there is a real, confirmed plateau.
     causes: List[Cause] = []
     if plateau.enough_data and plateau.is_plateau:
-        causes = _rank_causes(plateau.series, contexts, goal)
+        causes = _rank_causes(
+            plateau.series, contexts, goal, routine,
+            plateau.window_sessions + 1,
+        )
 
     window_start = plateau.series[0].date if plateau.series else None
     window_end = plateau.series[-1].date if plateau.series else None

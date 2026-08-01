@@ -20,19 +20,34 @@ from __future__ import annotations
 # PLATEAU DETECTION
 # ---------------------------------------------------------------------------
 
-# How many of the most-recent exercise-sessions must show NO new personal high
-# before we call it a plateau. Set to 5 => "no progress for the last 5 sessions"
-# (~2 weeks for someone training a lift 2-3x/week, so one bad session doesn't
-# read as a stall).
-# ASSUMPTION: 5 sessions with no new high == plateau. Raise for a stricter,
-# slower-to-fire signal; lower to catch stalls sooner (more false positives).
-# Tune this to YOUR frequency: ~3 suits ~1x/week per lift, ~5 suits 2-3x/week.
-PLATEAU_WINDOW_SESSIONS = 5
+# --- Frequency-aware plateau window --------------------------------------
+# We no longer use a fixed session count. A plateau means roughly this many
+# WEEKS of no new estimated-1RM high; the window in SESSIONS is DERIVED from
+# training frequency so its calendar meaning stays constant whether a lift is
+# trained once or three times a week. See engine/detection.py:plateau_window().
+#
+# ASSUMPTION: ~3 weeks of no new high == a plateau worth diagnosing.
+#   window_sessions = clamp(round(TARGET_PLATEAU_WEEKS * sessions_per_week),
+#                           MIN_PLATEAU_WINDOW_SESSIONS, MAX_PLATEAU_WINDOW_SESSIONS)
+# Worked: 1x/wk -> 3 sessions (~3wk); 2x/wk -> 6 (~3wk); 3x/wk -> 9 (~3wk).
+TARGET_PLATEAU_WEEKS = 3.0
 
-# Minimum number of logged sessions for an exercise before we are willing to
-# render *any* verdict. With fewer than this we say "not enough data" rather
-# than guessing. Set to 6 => at least one baseline session plus the plateau window.
-MIN_SESSIONS_TO_JUDGE = 6
+# Clamp on the derived window: never flag on too little evidence (floor), never
+# demand an absurd count for very high-frequency lifts (cap).
+MIN_PLATEAU_WINDOW_SESSIONS = 3
+MAX_PLATEAU_WINDOW_SESSIONS = 10
+
+# Cadence (sessions/week) assumed only when NEITHER the routine's planned
+# frequency NOR the logged cadence is available (e.g. a brand-new off-plan lift
+# with <3 logged sessions). Per review, the ROUTINE's declared frequency is the
+# primary driver; the logged median-gap cadence is the fallback; this is the
+# last resort.
+DEFAULT_FREQUENCY_PER_WEEK = 2.0
+
+# We need at least (window + 1) sessions to judge: one baseline plus a full
+# stalled window. This floor protects the very-low-frequency case so a 1x/week
+# lifter isn't forced to log many weeks before ANY verdict.
+MIN_SESSIONS_FLOOR = MIN_PLATEAU_WINDOW_SESSIONS + 1  # = 4
 
 # Noise floor for what counts as a genuine improvement. A session only sets a
 # "new high" if its primary metric beats the previous best by MORE than this
@@ -40,11 +55,6 @@ MIN_SESSIONS_TO_JUDGE = 6
 # variation, e.g. 100.0 -> 101.0 (+1.0%) is treated as flat, not progress.
 # ASSUMPTION: <1.5% session-over-session == noise, not real progress.
 IMPROVEMENT_NOISE_FRACTION = 0.015
-
-# How many recent sessions the cause-engine looks across to compute trends
-# (RPE creeping, sleep declining, etc.). Slightly wider than the plateau window
-# so there is a baseline session to measure the trend against.
-ANALYSIS_WINDOW_SESSIONS = PLATEAU_WINDOW_SESSIONS + 1  # = 6
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +99,14 @@ RPE_HEADROOM = 7.0
 # Working sets per session for this exercise below which volume looks too low
 # to drive progress. This is a ROUGH per-exercise proxy for weekly volume
 # (true weekly-sets-per-muscle needs cross-exercise aggregation, added later).
+# Used only when there is no routine target to compare against.
 LOW_SETS_PER_SESSION = 3
+
+# When a routine IS declared, insufficient stimulus becomes measurable: we fire
+# if the sets actually performed fall short of the planned target by at least
+# this many sets on average (e.g. plan 4, log <=3 => 1 set short).
+# ASSUMPTION: averaging >=1 full set under the plan is a real volume shortfall.
+SET_SHORTFALL_SETS = 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +136,12 @@ STALE_SESSIONS = 5
 # ...and the same idea expressed in calendar time. Both the session count AND
 # the time span should be met to flag staleness on a slow-frequency lifter.
 STALE_WEEKS = 4.0
+
+# When a routine IS declared, staleness becomes direct: fire if the routine
+# itself (the plan) has gone unchanged for at least this many weeks. Read from
+# routine_history via RoutineContext.routine_age_weeks.
+# ASSUMPTION: a plan left untouched for 6+ weeks is stale programming.
+STALE_ROUTINE_WEEKS = 6.0
 
 
 # ---------------------------------------------------------------------------

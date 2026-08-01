@@ -19,23 +19,40 @@ ranked.
 
 ## Quick start
 
-No Node required — the frontend is React with **no build step**. You only need
-Python 3.9+.
+No Node required — the frontend is React with **no build step**. The app is
+deployed as a single **Vercel** project (static frontend + one Python serverless
+function) backed by **Postgres**. See **[DEPLOY.md](DEPLOY.md)** for the full
+deploy guide.
+
+To run locally you need Python 3.9+ and a Postgres connection string (a free
+Neon dev branch works well):
 
 ```bash
+export DATABASE_URL="postgres://…/neondb?sslmode=require"
 ./run.sh
 ```
 
-Then open **http://127.0.0.1:8000**. First run seeds a realistic demo dataset so
-the dashboard is populated immediately.
+`run.sh` installs deps, seeds the demo data (idempotent), and serves the whole
+app at **http://127.0.0.1:8000**.
 
 <details>
 <summary>Manual steps (equivalent to run.sh)</summary>
 
 ```bash
 python3 -m venv .venv
-./.venv/bin/pip install -r requirements.txt
-./.venv/bin/python -m uvicorn server.main:app --port 8000 --reload
+./.venv/bin/python -m pip install -r requirements.txt
+export DATABASE_URL="postgres://…/neondb?sslmode=require"
+./.venv/bin/python -m server.seed                    # create schema + seed once
+./.venv/bin/python -m uvicorn server.local:app --port 8000 --reload
+```
+</details>
+
+<details>
+<summary>Test the API with no external database</summary>
+
+```bash
+./.venv/bin/python -m pip install pgserver httpx
+./.venv/bin/python scripts/e2e_pg.py    # boots a throwaway Postgres, seeds, hits every route
 ```
 </details>
 
@@ -66,15 +83,18 @@ engine/            ← the core IP (pure Python, no deps)
   rules.py           the cause-reasoning engine (5 rules, if/then, weighted)
   diagnose.py        orchestrator: detection + rules → ranked DiagnosisReport
 tests/             ← pytest suite for the engine
-server/            ← FastAPI + SQLite (thin; all SQL in repository.py)
-  db.py, repository.py, schemas.py, seed.py, main.py
+server/            ← FastAPI + Postgres (thin; all SQL in repository.py)
+  db.py, repository.py, schemas.py, seed.py, main.py, local.py
+api/index.py       ← Vercel serverless entry (exposes the FastAPI app)
 web/               ← no-build React (vendored React 18 + htm) + SVG charts
-data/fitness.db    ← SQLite file (created on first run; open it to inspect)
+vercel.json        ← routes: / → landing, /app → SPA, /api/* → the function
 ```
 
-Data flow: **log → SQLite → `repository` maps rows to engine types → `engine`
+Data flow: **log → Postgres → `repository` maps rows to engine types → `engine`
 diagnoses → JSON → React dashboard**. The full `DiagnosisReport` is also persisted
-to `plateau_reports.report_json` so every past verdict stays inspectable.
+to `plateau_reports.report_json` so every past verdict stays inspectable. The
+`engine/` module is pure Python and identical to the pre-migration version — only
+the persistence + hosting layer changed (SQLite → Postgres, one Vercel function).
 
 ---
 
@@ -174,7 +194,8 @@ lifts:
 - **Barbell Row** → stale programming (identical 3×10 for ~4+ weeks)
 - **Back Squat / Deadlift** → still progressing (the app shouldn't cry wolf)
 
-Delete `data/fitness.db` to reset and re-seed.
+Re-run `python -m server.seed` to (idempotently) ensure the schema and demo data.
+To start completely fresh, drop the tables in your Postgres database and re-run it.
 
 ---
 

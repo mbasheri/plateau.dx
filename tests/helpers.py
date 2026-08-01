@@ -13,24 +13,25 @@ from engine.types import DailyContext, ExerciseInfo, ExerciseSession, SetLog
 MONDAY = date(2026, 1, 5)
 
 BENCH = ExerciseInfo(id=1, name="Bench Press", muscle_group="chest",
-                     modality="barbell")
+                     equipment="barbell", movement_pattern="horizontal_push")
 
 
 def _date_for_index(i: int, days: int) -> date:
     return MONDAY + timedelta(days=days * i)
 
 
-def sessions(specs, days: int = 7) -> List[ExerciseSession]:
+def sessions(specs, days: int = 7, n_sets: int = 3) -> List[ExerciseSession]:
     """
     Build a series of sessions. `specs` is a list of (weight, reps, rpe) tuples,
     one per session. `days` is the spacing between sessions (default 7 = weekly;
-    use 3 to simulate ~2x/week, which keeps the calendar span short).
+    use a smaller value to simulate higher frequency). `n_sets` is how many
+    identical working sets each session logs (default 3).
     """
     out = []
     for i, (weight, reps, rpe) in enumerate(specs):
         out.append(ExerciseSession(
             date=_date_for_index(i, days),
-            sets=[SetLog(reps=reps, weight=weight, rpe=rpe) for _ in range(3)],
+            sets=[SetLog(reps=reps, weight=weight, rpe=rpe) for _ in range(n_sets)],
         ))
     return out
 

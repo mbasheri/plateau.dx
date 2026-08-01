@@ -10,8 +10,8 @@ from tests.helpers import sessions
 
 
 def test_not_enough_data_declines_to_judge():
-    # 5 sessions; MIN_SESSIONS_TO_JUDGE is 6.
-    r = detect_plateau(sessions([(100, 5, 7)] * 5))
+    # 3 weekly sessions -> ~1x/week -> window 3, so min-to-judge is 4.
+    r = detect_plateau(sessions([(100, 5, 7)] * 3))
     assert r.enough_data is False
     assert r.is_plateau is False
 

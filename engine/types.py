@@ -11,7 +11,7 @@ Design goals:
     number and the threshold it was compared against), and why each Cause fired.
     You should never have to guess why the engine said what it said.
 
-INPUT types:  SetLog, ExerciseSession, DailyContext, ExerciseInfo
+INPUT types:  SetLog, ExerciseSession, DailyContext, ExerciseInfo, RoutineContext
 OUTPUT types: Signal, Cause, SessionMetric, PlateauResult, DiagnosisReport
 """
 
@@ -61,11 +61,34 @@ class DailyContext:
 
 @dataclass
 class ExerciseInfo:
-    """Identity of the exercise being diagnosed."""
+    """Identity of the exercise being diagnosed, plus library tags the engine
+    reasons about (movement_pattern drives the routine-based staleness check)."""
     id: int
     name: str
     muscle_group: str
-    modality: str = "barbell"
+    equipment: str = "barbell"          # barbell|dumbbell|cable|machine|bodyweight
+    movement_pattern: str = "other"     # horizontal_push|vertical_pull|hinge|...
+    is_compound: bool = True
+
+
+@dataclass
+class RoutineContext:
+    """
+    The user's declared plan for THIS exercise, when they have an active routine.
+    Every field is optional: the engine falls back to log-only heuristics when a
+    field (or the whole object) is missing, so it still works with no routine.
+    """
+    target_sets: Optional[int] = None
+    target_rep_low: Optional[int] = None
+    target_rep_high: Optional[int] = None
+    # How many days per week the routine schedules this lift (assumes a weekly
+    # cycle). Primary driver of the plateau window per review.
+    declared_freq_per_week: Optional[float] = None
+    # Weeks since the routine (the plan) last changed, from routine_history.
+    routine_age_weeks: Optional[float] = None
+    # Distinct movement patterns trained for this exercise's muscle group in the
+    # routine (1 => no rotation, a staleness signal).
+    muscle_pattern_count: Optional[int] = None
 
 
 # ===========================================================================
@@ -131,6 +154,11 @@ class PlateauResult:
     length_weeks: float           # calendar weeks since the last new high
     series: List[SessionMetric]   # the full metric series the engine saw
     reason: str                   # plain-language detection explanation
+    # Frequency-aware window transparency (always shown so the count is
+    # interpretable alongside the calendar time):
+    window_sessions: int = 0          # the derived plateau window used
+    frequency_per_week: float = 0.0   # cadence the window was sized from
+    frequency_source: str = "default" # 'routine' | 'logged' | 'default'
 
 
 @dataclass

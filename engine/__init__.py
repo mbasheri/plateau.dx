@@ -26,6 +26,7 @@ from .types import (
     ExerciseInfo,
     ExerciseSession,
     PlateauResult,
+    RoutineContext,
     SessionMetric,
     SetLog,
     Signal,
@@ -39,6 +40,7 @@ __all__ = [
     "ExerciseSession",
     "DailyContext",
     "ExerciseInfo",
+    "RoutineContext",
     # output types
     "DiagnosisReport",
     "PlateauResult",

@@ -4,8 +4,11 @@ __pycache__/
 .venv/
 .pytest_cache/
 
-# Local SQLite data (regenerated with demo seed on first run)
+# Legacy local SQLite data (no longer used; kept ignored for old checkouts)
 data/*.db
+
+# Throwaway Postgres cluster created by scripts/e2e_pg.py
+.pg-e2e/
 
 # OS / editor
 .DS_Store

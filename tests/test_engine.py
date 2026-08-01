@@ -37,9 +37,10 @@ def test_fatigue_is_top_cause_when_recovery_craters():
 
 
 def test_insufficient_stimulus_when_effort_is_low():
-    # Flat weight but easy sets (RPE 6) and no attempt to progress.
-    s = sessions([(100, 5, 6.0)] * 6, days=3)
-    c = contexts([{"sleep": 8, "stress": 2, "nutrition": "enough"}] * 6, days=3)
+    # Flat weight but easy sets (RPE 6) and no attempt to progress. Weekly
+    # cadence -> window 3. (No routine here, so this uses the log-only path.)
+    s = sessions([(100, 5, 6.0)] * 6)
+    c = contexts([{"sleep": 8, "stress": 2, "nutrition": "enough"}] * 6)
     r = diagnose_exercise(BENCH, s, c, goal="strength")
 
     assert r.causes[0].id == "insufficient_stimulus"
@@ -47,7 +48,7 @@ def test_insufficient_stimulus_when_effort_is_low():
 
 
 def test_nutrition_when_undereating_and_losing_weight():
-    s = sessions([(100, 5, 7.5)] * 6, days=3)
+    s = sessions([(100, 5, 7.5)] * 6)
     c = contexts([
         {"sleep": 7.5, "stress": 2, "bw": 80.0, "nutrition": "under"},
         {"sleep": 7.5, "stress": 2, "bw": 79.6, "nutrition": "under"},
@@ -55,7 +56,7 @@ def test_nutrition_when_undereating_and_losing_weight():
         {"sleep": 7.5, "stress": 2, "bw": 78.8, "nutrition": "under"},
         {"sleep": 7.5, "stress": 2, "bw": 78.4, "nutrition": "under"},
         {"sleep": 7.5, "stress": 2, "bw": 78.0, "nutrition": "under"},
-    ], days=3)
+    ])
     r = diagnose_exercise(BENCH, s, c, goal="strength")
 
     assert r.causes[0].id == "nutrition"
@@ -72,12 +73,13 @@ def test_staleness_when_nothing_changes_for_weeks():
 
 def test_technique_when_grinding_at_high_rpe():
     # Flat weight, RPE spiking to a grind, but recovery is fine and the span is
-    # short (so it's a technique issue, not staleness).
+    # short (so it's a technique issue, not staleness). days=3 => ~2.3x/week =>
+    # window 7, so 8 sessions clears min-to-judge while spanning <4 weeks.
     s = sessions([
-        (100, 5, 8.0), (100, 5, 8.0), (100, 5, 8.5),
-        (100, 5, 9.0), (100, 5, 9.0), (100, 5, 9.5),
+        (100, 5, 8.0), (100, 5, 8.0), (100, 5, 8.5), (100, 5, 9.0),
+        (100, 5, 9.0), (100, 5, 9.0), (100, 5, 9.5), (100, 5, 9.5),
     ], days=3)
-    c = contexts([{"sleep": 8, "stress": 2}] * 6, days=3)
+    c = contexts([{"sleep": 8, "stress": 2}] * 8, days=3)
     r = diagnose_exercise(BENCH, s, c, goal="strength")
 
     assert r.causes[0].id == "technique"

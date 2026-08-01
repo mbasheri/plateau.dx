@@ -36,6 +36,7 @@ from .metrics import linear_trend, weeks_between
 from .types import (
     Cause,
     DailyContext,
+    RoutineContext,
     SessionMetric,
     Signal,
 )
@@ -74,6 +75,11 @@ class WindowStats:
     undereat_ratio: Optional[float]
     bodyweight_delta_frac: Optional[float]
     context_days: int                   # how many daily check-ins we matched
+    # routine-derived (all None when the user has no active routine, in which
+    # case the rules fall back to log-only heuristics)
+    target_sets: Optional[int] = None
+    routine_age_weeks: Optional[float] = None
+    muscle_pattern_count: Optional[int] = None
 
 
 def _sig(name, value, threshold, direction, note, triggered) -> Signal:
@@ -85,14 +91,21 @@ def build_window(
     metrics: List[SessionMetric],
     contexts: List[DailyContext],
     goal: str,
+    routine: Optional[RoutineContext] = None,
+    analysis_window_sessions: Optional[int] = None,
 ) -> WindowStats:
     """
     Reduce the full session series + all daily contexts into the aggregates the
     rules need. `metrics` is the FULL, date-ordered series with is_new_high
     already marked by detection.
+
+    `analysis_window_sessions` is the frequency-aware plateau window + 1 (passed
+    by diagnose so trends are measured across the actual stalled period plus a
+    baseline). `routine` carries the user's plan when they have one.
     """
     # --- the trend/analysis window: the most recent N sessions ---
-    window = metrics[-T.ANALYSIS_WINDOW_SESSIONS:]
+    n_window = analysis_window_sessions or (T.MIN_PLATEAU_WINDOW_SESSIONS + 1)
+    window = metrics[-n_window:]
     first, last = window[0], window[-1]
     weeks_spanned = weeks_between(first.date, last.date)
 
@@ -190,6 +203,9 @@ def build_window(
         undereat_ratio=undereat_ratio,
         bodyweight_delta_frac=bodyweight_delta_frac,
         context_days=len(win_ctx),
+        target_sets=routine.target_sets if routine else None,
+        routine_age_weeks=routine.routine_age_weeks if routine else None,
+        muscle_pattern_count=routine.muscle_pattern_count if routine else None,
     )
 
 
@@ -240,6 +256,22 @@ def rule_insufficient_stimulus(w: WindowStats) -> Cause:
         direction="below", note=note, triggered=triggered,
     ), 2.0))
 
+    # Signal: planned vs. performed sets — DIRECT, measurable evidence (weight
+    # 2.0). Only when the user has a declared routine: if they plan N sets and
+    # log fewer, that is a fact, not an inference from volume trends.
+    if w.target_sets:
+        shortfall = w.target_sets - w.avg_sets_per_session
+        triggered = shortfall >= T.SET_SHORTFALL_SETS
+        note = (f"Logged {w.avg_sets_per_session:.1f} of {w.target_sets} planned "
+                f"sets ({shortfall:.1f} short) — the planned volume isn't being "
+                f"delivered.") if triggered else ""
+    else:
+        triggered, note = False, ""
+    signals.append((_sig(
+        name="below_target_sets", value=round(w.avg_sets_per_session, 1),
+        threshold=w.target_sets, direction="below", note=note, triggered=triggered,
+    ), 2.0))
+
     # Signal: no progressive overload was even attempted (weight 1.0 — secondary,
     # because weight is trivially "flat" in any plateau; on its own it says little
     # unless effort is also low. It matters most when the lifter genuinely never
@@ -255,8 +287,11 @@ def rule_insufficient_stimulus(w: WindowStats) -> Cause:
         triggered=triggered,
     ), 1.0))
 
-    # Signal: low working-set volume for this lift (rough per-exercise proxy).
-    triggered = w.avg_sets_per_session < T.LOW_SETS_PER_SESSION
+    # Signal: low working-set volume (rough proxy, weight 1.0). Only used when
+    # there is NO routine target to compare against — the direct check above
+    # supersedes it when a plan exists.
+    triggered = (w.target_sets is None
+                 and w.avg_sets_per_session < T.LOW_SETS_PER_SESSION)
     signals.append((_sig(
         name="low_volume",
         value=round(w.avg_sets_per_session, 1),
@@ -413,23 +448,44 @@ def rule_nutrition(w: WindowStats) -> Cause:
 def rule_staleness(w: WindowStats) -> Cause:
     signals: list = []
 
-    # Signal: the same rep scheme has been repeated for long enough — both in
-    # session count AND in calendar weeks — to count as stale (weight 2.0).
-    no_variation = (w.stale_run_sessions >= T.STALE_SESSIONS
-                    and w.stale_run_weeks >= T.STALE_WEEKS)
-    note = (f"Same {w.stale_reps}-rep top set for {w.stale_run_sessions} "
-            f"sessions across ~{w.stale_run_weeks:.1f} weeks with no variation.") \
-        if no_variation else ""
-    signals.append((_sig("no_rep_variation", w.stale_run_sessions,
-                         T.STALE_SESSIONS, "above", note, no_variation), 2.0))
+    if w.routine_age_weeks is not None:
+        # DIRECT (routine-driven): read the plan itself rather than inferring it
+        # from unchanged logs.
 
-    # Signal: the load has also been identical throughout the run (secondary,
-    # weight 0.5) — reinforces that nothing about the stimulus has changed.
-    same_load = w.stale_same_load and w.stale_run_sessions >= T.STALE_SESSIONS
-    note = ("The working weight has also been identical every session."
-            if same_load else "")
-    signals.append((_sig("same_load", w.stale_same_load, True, "equal", note,
-                         same_load), 0.5))
+        # Signal: the routine (the plan) has gone unchanged too long (weight 1.5).
+        triggered = w.routine_age_weeks >= T.STALE_ROUTINE_WEEKS
+        note = (f"Your routine hasn't changed in {w.routine_age_weeks:.0f} weeks "
+                f"(≥{T.STALE_ROUTINE_WEEKS:.0f}) — same plan, same stimulus.") \
+            if triggered else ""
+        signals.append((_sig("routine_unchanged", round(w.routine_age_weeks, 1),
+                             T.STALE_ROUTINE_WEEKS, "above", note, triggered), 1.5))
+
+        # Signal: no movement-pattern rotation for this muscle group (weight 2.0)
+        # — the routine only ever trains it one way. Uses the library tags.
+        if w.muscle_pattern_count is not None:
+            triggered = w.muscle_pattern_count <= 1
+            note = ("The routine trains this muscle group with only one movement "
+                    "pattern — nothing to rotate through.") if triggered else ""
+        else:
+            triggered, note = False, ""
+        signals.append((_sig("no_pattern_rotation", w.muscle_pattern_count, 2,
+                             "below", note, triggered), 2.0))
+    else:
+        # INFERRED (log-only fallback): the trailing rep-scheme run heuristic,
+        # used when the user has no declared routine to read from.
+        no_variation = (w.stale_run_sessions >= T.STALE_SESSIONS
+                        and w.stale_run_weeks >= T.STALE_WEEKS)
+        note = (f"Same {w.stale_reps}-rep top set for {w.stale_run_sessions} "
+                f"sessions across ~{w.stale_run_weeks:.1f} weeks with no variation.") \
+            if no_variation else ""
+        signals.append((_sig("no_rep_variation", w.stale_run_sessions,
+                             T.STALE_SESSIONS, "above", note, no_variation), 2.0))
+
+        same_load = w.stale_same_load and w.stale_run_sessions >= T.STALE_SESSIONS
+        note = ("The working weight has also been identical every session."
+                if same_load else "")
+        signals.append((_sig("same_load", w.stale_same_load, True, "equal", note,
+                             same_load), 0.5))
 
     return _weighted(
         cause_id="programming_staleness",
