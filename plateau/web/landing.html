@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Plateau·Dx — know why you stalled</title>
+  <meta name="color-scheme" content="light" />
+  <meta name="description" content="Plateau·Dx reads your training and recovery, then tells you the likely cause of a stall and what to change." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --paper: #F7F8FA; --surface: #FFFFFF; --ink: #14181F; --muted: #6B7280; --faint: #9AA1AC;
+      --rule: #ECEEF2; --rule-2: #E2E5EB;
+      --c-red: #F20544; --c-pink: #F20574; --c-orange-deep: #F25C05; --c-orange: #F28705; --c-teal: #03A6A6;
+      --brand-grad: linear-gradient(135deg, #F20574 0%, #F20544 100%);
+      --shadow: 0 1px 2px rgba(20,24,31,.04), 0 8px 24px rgba(20,24,31,.06);
+      --shadow-lg: 0 2px 6px rgba(20,24,31,.06), 0 24px 60px rgba(20,24,31,.12);
+      --sans: "Open Sans", system-ui, -apple-system, sans-serif;
+      --round: "Nunito", var(--sans);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: var(--paper); color: var(--ink); font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+      height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+    }
+    a { text-decoration: none; color: inherit; }
+
+    /* soft palette glow, off-white base */
+    body::before {
+      content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background:
+        radial-gradient(60% 55% at 82% 12%, rgba(242,5,116,.10), transparent 70%),
+        radial-gradient(55% 50% at 12% 88%, rgba(3,166,166,.10), transparent 70%);
+    }
+
+    header { flex: none; display: flex; align-items: center; justify-content: space-between;
+      padding: clamp(14px, 2.4vh, 22px) clamp(18px, 5vw, 44px); }
+    .wordmark { font-family: var(--round); font-weight: 800; font-size: 22px; letter-spacing: -0.01em; }
+    .wordmark .mid { color: var(--c-red); padding: 0 1px; }
+    .wordmark .dx { background: var(--brand-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .top-cta { font-weight: 700; font-size: 14px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 999px; transition: background .15s ease, color .15s ease; }
+    .top-cta:hover { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+
+    main { flex: 1 1 auto; min-height: 0; display: grid;
+      grid-template-columns: 1.05fr 0.95fr; gap: clamp(24px, 5vw, 72px); align-items: center;
+      padding: 0 clamp(18px, 5vw, 44px) clamp(12px, 2vh, 24px); max-width: 1180px;
+      margin: 0 auto; width: 100%; }
+
+    .pill { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12.5px;
+      color: var(--c-red); background: rgba(242,5,68,.08); padding: 6px 14px; border-radius: 999px; }
+    .pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--c-red); }
+    h1 { font-family: var(--round); font-weight: 800; font-size: clamp(34px, 5.4vw, 62px);
+      line-height: 1.02; letter-spacing: -0.03em; margin: clamp(14px, 2.4vh, 22px) 0 clamp(12px, 1.8vh, 18px); }
+    h1 .hl { background: var(--brand-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .sub { font-size: clamp(15px, 1.9vw, 18px); color: var(--muted); max-width: 40ch; line-height: 1.5; }
+    .cta-row { display: flex; align-items: center; gap: 16px; margin-top: clamp(18px, 2.8vh, 28px); flex-wrap: wrap; }
+    .cta { display: inline-flex; align-items: center; gap: 10px; background: var(--brand-grad); color: #fff;
+      font-weight: 800; font-size: 16px; padding: 14px 28px; border-radius: 999px;
+      box-shadow: 0 8px 20px rgba(242,5,68,.28); transition: transform .12s ease, box-shadow .12s ease; }
+    .cta:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(242,5,68,.36); }
+    .cta .arrow { transition: transform .15s ease; }
+    .cta:hover .arrow { transform: translateX(3px); }
+
+    /* condensed feature row: icon + short label */
+    .feats { display: flex; gap: clamp(12px, 2vw, 26px); margin-top: clamp(20px, 3.2vh, 34px); flex-wrap: wrap; }
+    .feat { display: flex; align-items: center; gap: 10px; }
+    .feat .ic { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; flex: none; }
+    .feat .fl { font-weight: 800; font-size: 14px; line-height: 1.15; }
+    .feat .fl small { display: block; font-weight: 600; font-size: 11.5px; color: var(--faint); }
+
+    /* hero art: product-style card with Apple-Health trend + verdict */
+    .art { display: flex; justify-content: center; align-items: center; min-width: 0; }
+    .device { width: 100%; max-width: 420px; background: var(--surface); border: 1px solid var(--rule);
+      border-radius: 26px; box-shadow: var(--shadow-lg); padding: 22px; transform: rotate(-1.2deg); }
+    .device .dv-top { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .device .dv-badge { width: 34px; height: 34px; border-radius: 10px; background: var(--brand-grad);
+      display: grid; place-items: center; color: #fff; font-family: var(--round); font-weight: 800; }
+    .device .dv-k { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+    .device .dv-verdict { font-family: var(--round); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; line-height: 1.1; }
+    .device .dv-verdict .a { color: var(--c-red); }
+    .device .dv-chart { margin: 12px 0 10px; }
+    .device .dv-fix { display: flex; gap: 8px; align-items: center; background: #F2F4F7; border-radius: 12px;
+      padding: 10px 12px; font-size: 12.5px; color: var(--ink); }
+    .device .dv-sci { margin-top: 10px; border: 1px solid var(--rule-2); border-radius: 12px;
+      padding: 9px 12px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; color: var(--muted); }
+    .device .dv-sci .chev { margin-left: auto; color: var(--faint); }
+
+    footer { flex: none; text-align: center; padding: clamp(8px, 1.6vh, 16px); font-size: 12px; color: var(--faint); }
+
+    @media (max-width: 860px) {
+      header { padding: 12px 20px; }
+      main { grid-template-columns: 1fr; gap: 14px; padding: 0 20px 8px; align-content: center; text-align: left; }
+      .art { order: -1; }
+      .device { max-width: 300px; transform: none; padding: 14px; margin: 0 auto; }
+      .device .dv-verdict { font-size: 20px; }
+      .device .dv-chart { margin: 10px 0 8px; }
+      .device .dv-fix { padding: 8px 10px; font-size: 12px; }
+      .device .dv-sci { display: none; }
+      .pill { font-size: 12px; padding: 5px 12px; }
+      h1 { font-size: clamp(30px, 9vw, 40px); margin: 10px 0 8px; }
+      .sub { font-size: 14px; max-width: none; }
+      .cta-row { margin-top: 14px; }
+      .cta { padding: 12px 22px; font-size: 15px; }
+      .feats { margin-top: 14px; gap: 10px 20px; }
+      .feat .ic { width: 34px; height: 34px; }
+      .feat .fl { font-size: 13px; }
+      footer { padding: 6px; font-size: 10.5px; }
+    }
+    /* very short mobile: trim the hero card's fix line too */
+    @media (max-width: 860px) and (max-height: 700px) {
+      .device .dv-fix { display: none; }
+      .sub { display: none; }
+    }
+    @media (max-height: 720px) and (min-width: 861px) {
+      h1 { font-size: clamp(30px, 4.4vw, 48px); }
+      .feats { margin-top: 18px; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } .device { transform: none; } }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="wordmark" href="/">Plateau<span class="mid">·</span><span class="dx">Dx</span></a>
+    <a class="top-cta" href="/app">Open the demo →</a>
+  </header>
+
+  <main>
+    <section>
+      <span class="pill"><span class="dot"></span> Strength plateau diagnosis</span>
+      <h1>Know <span class="hl">why</span> you stalled.</h1>
+      <p class="sub">Most trackers chart your lifts and leave you guessing. Plateau·Dx reads your training and recovery and names the cause — with the fix.</p>
+      <div class="cta-row">
+        <a class="cta" href="/app">See the demo <span class="arrow">→</span></a>
+      </div>
+      <div class="feats">
+        <div class="feat">
+          <span class="ic" style="background:rgba(242,5,68,.10)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><polyline points="3,18 8,12 12,13 16,7 21,6" stroke="#F20544" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+          <span class="fl">Detects<small>real plateaus</small></span>
+        </div>
+        <div class="feat">
+          <span class="ic" style="background:rgba(3,166,166,.12)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="6.5" stroke="#03A6A6" stroke-width="2.2"/><line x1="16" y1="16" x2="21" y2="21" stroke="#03A6A6" stroke-width="2.2" stroke-linecap="round"/></svg>
+          </span>
+          <span class="fl">Diagnoses<small>the cause</small></span>
+        </div>
+        <div class="feat">
+          <span class="ic" style="background:rgba(242,135,5,.12)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><line x1="4" y1="8" x2="20" y2="8" stroke="#E2E5EB" stroke-width="2"/><rect x="11" y="5" width="7" height="6" rx="1.5" fill="#F28705"/><line x1="11" y1="4" x2="11" y2="12" stroke="#F28705" stroke-width="2"/><line x1="4" y1="17" x2="20" y2="17" stroke="#E2E5EB" stroke-width="2"/><rect x="6" y="14" width="5" height="6" rx="1.5" fill="#F25C05"/><line x1="6" y1="13" x2="6" y2="21" stroke="#F25C05" stroke-width="2"/></svg>
+          </span>
+          <span class="fl">Shows<small>the evidence</small></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="art" aria-hidden="true">
+      <div class="device">
+        <div class="dv-top">
+          <span class="dv-badge">B</span>
+          <div><div class="dv-k">Chest · stuck 4 weeks</div><div class="dv-verdict">Bench Press: <span class="a">recover more</span></div></div>
+        </div>
+        <div class="dv-chart">
+          <svg viewBox="0 0 380 130" role="img" aria-label="estimated 1RM trend flattening">
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#F20544" stop-opacity="0.22"/>
+                <stop offset="100%" stop-color="#F20544" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <line x1="8" y1="98" x2="372" y2="98" stroke="#ECEEF2" stroke-width="1"/>
+            <line x1="8" y1="60" x2="372" y2="60" stroke="#ECEEF2" stroke-width="1"/>
+            <path d="M8,96 C50,90 70,70 108,58 C150,45 175,40 214,40 C260,40 300,41 372,41 L372,120 L8,120 Z" fill="url(#g)"/>
+            <path d="M8,96 C50,90 70,70 108,58 C150,45 175,40 214,40 C260,40 300,41 372,41" fill="none" stroke="#F20544" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="214" cy="40" r="5" fill="#F20544"/><circle cx="214" cy="40" r="9" fill="#F20544" opacity="0.15"/>
+          </svg>
+        </div>
+        <div class="dv-fix"><span>🛌</span><span>Deload ~10% and prioritise sleep this week.</span></div>
+        <div class="dv-sci"><span>🔬</span> The science <span class="chev">›</span></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>Plateau·Dx — a transparent, rules-based strength-plateau diagnosis. Demo data included.</footer>
+</body>
+</html>
