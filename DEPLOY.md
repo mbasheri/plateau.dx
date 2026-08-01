@@ -9,12 +9,17 @@ existing FastAPI app.
 
 ```
 Browser ──► Vercel
-             ├─ /                → web/landing.html         (static)
-             ├─ /app             → web/index.html           (static SPA)
-             ├─ /static/*        → web/*  (styles, app.js, vendor/)   (static)
+             ├─ /                → public/index.html   (landing, auto-served)
+             ├─ /app             → public/app.html     (dashboard SPA)
+             ├─ /static/*        → public/*  (styles.css, app.js, vendor/)
              └─ /api/*           → api/index.py  →  FastAPI app  ──► Neon Postgres
 ```
 
+- The static frontend lives in **`public/`** — the directory Vercel serves at the
+  root automatically, independent of framework preset or output directory. The
+  landing page is `public/index.html` (so `/` just works); the dashboard shell is
+  `public/app.html`. Assets are referenced as `/static/*` and a rewrite maps that
+  to `public/*`.
 - `engine/` (the pure rules engine) is **untouched** by this migration.
 - `server/main.py` is the API only; `api/index.py` exposes it to Vercel.
 - SQLite → Postgres: `server/db.py` (schema + psycopg connection), with
@@ -55,13 +60,18 @@ DATABASE_URL="postgres://…-pooler…/neondb?sslmode=require" python -m server.
 This creates all 13 tables and loads the demo athlete (anchored to *today*), so
 the dashboard shows real data instead of "No data yet".
 
-## Step 3 — Vercel project settings
+## Step 3 — Vercel project settings (important — this is what broke it before)
 
-- **Root Directory: the repo root** (was `web` in the old split — change it back).
-  Vercel picks up the root `vercel.json`, serves `web/` statically, and builds
-  `api/index.py` as a Python function.
-- Framework Preset: **Other**. Build Command / Output Directory: **none**
-  (the frontend has no build step).
+In the Vercel project → **Settings → Build & Deployment**:
+
+- **Framework Preset: `Other`.** (A wrong preset makes Vercel look for a build
+  output that doesn't exist and serve nothing → root `404 NOT_FOUND`.)
+- **Root Directory: the repo root** (was `web` in the old split — change it back,
+  empty/`./`). Vercel then reads the root `vercel.json`, serves `public/` at the
+  root, and builds `api/index.py` as a Python function.
+- **Build Command: empty. Output Directory: empty.** There's no build step;
+  `public/` is served automatically. Do **not** set Output Directory to `web` or
+  `public` — leave it blank.
 - `requirements.txt` (repo root) is installed for the function automatically.
 
 ## Step 4 — Deploy

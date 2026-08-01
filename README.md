@@ -86,8 +86,11 @@ tests/             ← pytest suite for the engine
 server/            ← FastAPI + Postgres (thin; all SQL in repository.py)
   db.py, repository.py, schemas.py, seed.py, main.py, local.py
 api/index.py       ← Vercel serverless entry (exposes the FastAPI app)
-web/               ← no-build React (vendored React 18 + htm) + SVG charts
-vercel.json        ← routes: / → landing, /app → SPA, /api/* → the function
+public/            ← static frontend, served at the root by Vercel:
+                     index.html (landing), app.html (dashboard SPA), app.js,
+                     styles.css, vendor/ (no-build React 18 + htm)
+vercel.json        ← routes: / → landing, /app → SPA, /static/* → public/*,
+                     /api/* → the function
 ```
 
 Data flow: **log → Postgres → `repository` maps rows to engine types → `engine`
